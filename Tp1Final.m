@@ -32,7 +32,7 @@ t_tp = (0:Lp-1)*Tp;
 fp_centred = fs*(-Lp/2:Lp/2-1)/Lp; %Frequency Vector
 fp_centred_f0 =PRF*(-(Lp/2):(Lp/2-1))/Lp; %Frequency Vector
 fp_centred_128 =-(64):(64-1); %Frequency Vector
-fd=2*TauP*((-4*64):(4*64-1))+f0;
+
 
 
 % ------------------------------------------------------------------------
@@ -71,8 +71,8 @@ theta_t=(pi*beta*(t_t.^2))./TauP;
 x_t=exp(1i*theta_t);
 
 %de la ecuación 4.55 del libro, tenemos
-hp=fliplr(x_t');
-Hp_f=fft(hp,Lp);     % transformamos y corremos
+hp=flip(x_t');
+Hp_f=fft(hp,Lp);     % transformamos y corremo
 
 % ------------------------------------------------------------------------
 % Processing
@@ -133,38 +133,30 @@ end
 fclose(FileId) ;
 
 
-
-% BORRAR
-% TEST DE COMPARAR el FD de la rx con la filtrada
-
-% for j=1:k
-%     for i=1:L
-%         tmp1=Signal(:,:,j)
-%         
-%         
-%     end
-% end
-
-
-
-
-% HASTA ACA
-
-
 %--------------------------------------------------------------------------
 % Funciones Window
 %--------------------------------------------------------------------------
 
-
+disp('Seleccione la función windos que desee implementar:');
+disp(sprintf ('1) Rectangular\n2) Flat top\n3) Hann\n4) Hamming\nSin window otro número'));
+cw=input('Ingrese Opcion: ');
+x=1:M;
+switch cw
+    case 1 %Rectangular
+        w=1-abs((x-0.5*(M-1))/(0.5*M));
+    case 2 %Flat top 
+        w=1-1.93*cos(2*pi*x/(M-1))+1.29*cos(4*pi*x/(M-1))-0.388*cos(6*pi*x/(M-1))+0.028*cos(8*pi*x/(M-1));
+    case 3 %Hann
+        w=0.5*(1-cos(2*pi*x/(M-1)));
+    case 4 %Hamming
+        w=25/46-(21/46)*cos(2*pi*x/(M-1));
+    otherwise
+        w=1;
+end
 
 %--------------------------------------------------------------------------
 % Procesamiento
 %--------------------------------------------------------------------------
-% test de un ray
-% Tomamos el primer ray y Aplicamos FFT
-ray_t=Signal(:,nDWEL,nk);
-ray_f=fft(ray_t, Lp);
-
 % IMPLEMENTACION DEL FILTRO
 % La siguiente rutina recorre todo el cubo de datos y procesa la señal
 % recibida con el filtro Chirp y la almacena en SFiltrada
@@ -179,38 +171,34 @@ for nk=1:81
             out_f=ray_f.*Hp_f;
             out=ifft(out_f, Lp);
             
-            SFiltrada(:,nDWEL,nk)=out;  
+            SFiltrada(:,nDWEL,nk)=out;
+               
         end
 end
+
 
 % TEST DOPPLER SIN FILTRO %
 plano = zeros(81,4*M);
 promedio = zeros (81, M);
 for nk=1:81
-        %calculamos el promedio del pulso
-        tmp=0;
-        for m=1:M   
-            %se lee una fila en slow time
-            tmp=tmp+Signal(:,m,nk);
-        end
-        disp(nk);
-        promedio(nk,:)=tmp/M;
-        
+        %buscamos un maximo por iteración para un dwell cualquiera
+        [ValMax, Lmax]=max(SFiltrada(:,10,nk));
+
         % aplicamos el window
-        
-        win=promedio(nk,:);
+      
+        win=SFiltrada(Lmax,:,nk).*w;
             
         % se hace la fft y se centra
-        tmpf=fft(win,4*M);
+        tmpf=fftshift(fft(win,Lp));
         
-        plano(nk,:)=tmpf.*conj(tmpf)/(L*L); %computing power with proper scaling
+        %tmpf.*conj(tmpf)/(L*L); %computing power with proper scaling
         
 %grafico
-        Z=abs(tmpf);
+        Z=abs(tmpf.*conj(tmpf)/(L*L));
         
         figure(33),
-        plot(fd/TauP,Z),
-        ylim([0,2000]),
+        plot(fp_centred_f0(-TauP/10:TauP/10)/TauP,Z),
+        %ylim([0,1e9]),
         xlabel('Frequency'),
         ylabel('Amplitud'),
         shading interp;
