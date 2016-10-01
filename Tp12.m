@@ -66,15 +66,9 @@ nk=10;
 theta_t=(pi*beta*(t_t.^2))./TauP;
 x_t=exp(1i*theta_t);
 
-% theta_f=(pi*beta*(t_f.^2))./TauP;
-% x_f=exp(1i*theta_f);
-
-%x_fs=abs(fft(x_f,beta-304));     % transformamos y corremos 
-
 %de la ecuación 4.55 del libro, tenemos
-hp=fliplr(x_t');
+hp=flip(x_t');
 Hp_f=fft(hp,Lp);     % transformamos y corremos
-
 
 % ------------------------------------------------------------------------
 % Processing
@@ -133,8 +127,6 @@ end
 %mov = close(mov);
 fclose(FileId) ;
 
-
-
 %--------------------------------------------------------------------------
 % Procesamiento
 %--------------------------------------------------------------------------
@@ -153,9 +145,6 @@ for nk=1:81
             out=ifft(out_f, Lp);
             
             SFiltrada(:,nDWEL,nk)=out;
-%             
-%           %plot salida en tiempo
-%             
                 
         end
 end
@@ -163,33 +152,39 @@ end
 %--------------------------------------------------------------------------
 % Grafuicamos
 %--------------------------------------------------------------------------
+nk=input('Ingrese número de iteración (1 a 81): ');
+nDWEll=input('Ingrese número de dwell (1-128): ');
 
-%graph f salida
-out_f_c=fftshift(out_f);
-%out_DB=20*log10(out_f_c/max(out_f_c));
-%Pxx=out_f_c.*conj(out_f_c)/(Lp*Lp); %computing power with proper scaling
-figure(1),
-plot(fp_centred/beta,abs(out_f_c)/Lp),
-title('espectro salida');
-
-%graph f rx
-ray_f_c=fftshift(ray_f);
-%ray_DB=20*log10(ray_f_c/max(ray_f_c));
-%PxxR=ray_f_c.*conj(ray_f_c)/(Lp*Lp); %computing power with proper scaling
-figure(5),
-plot(fp_centred/beta, abs(ray_f_c)/Lp),
-title('espectro rx');
-
-
-%graph f chirp
-Hp_f_c=fftshift(Hp_f);
-%chi_DB=20*log10(Hp_f_c/max(Hp_f_c));
-%PxxH=Hp_f_c.*conj(Hp_f_c)/(Lp*Lp); %computing power with proper scaling
-figure(6),
-plot(fp_centred/beta, abs(Hp_f_c)/Lp),
-% ylim([-10,1]),
-% xlim([-0.6, 0.6]),
-title('espectro chirp');
+% %--------------------------------------------------------------------------
+% % Grafuicamos
+% %--------------------------------------------------------------------------
+% 
+% %graph f salida
+% out_f_c=fftshift(out_f);
+% %out_DB=20*log10(out_f_c/max(out_f_c));
+% %Pxx=out_f_c.*conj(out_f_c)/(Lp*Lp); %computing power with proper scaling
+% figure(1),
+% plot(fp_centred/beta,abs(out_f_c)/Lp),
+% title('espectro salida');
+% 
+% %graph f rx
+% ray_f_c=fftshift(ray_f);
+% %ray_DB=20*log10(ray_f_c/max(ray_f_c));
+% %PxxR=ray_f_c.*conj(ray_f_c)/(Lp*Lp); %computing power with proper scaling
+% figure(5),
+% plot(fp_centred/beta, abs(ray_f_c)/Lp),
+% title('espectro rx');
+% 
+% 
+% %graph f chirp
+% Hp_f_c=fftshift(Hp_f);
+% %chi_DB=20*log10(Hp_f_c/max(Hp_f_c));
+% %PxxH=Hp_f_c.*conj(Hp_f_c)/(Lp*Lp); %computing power with proper scaling
+% figure(6),
+% plot(fp_centred/beta, abs(Hp_f_c)/Lp),
+% % ylim([-10,1]),
+% % xlim([-0.6, 0.6]),
+% title('espectro chirp');
 
 %-------------- tiempo ----------------
 %graph tiempo
