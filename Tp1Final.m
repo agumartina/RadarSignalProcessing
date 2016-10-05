@@ -1,7 +1,7 @@
 % ------------------------------------------------------------------------
 % Notes:
 % The script shows how to read the data file and organize the data in radar
-% dwells of M pulses.
+% DWELL of M pulses.
 % ------------------------------------------------------------------------
 clc;
 clear all;
@@ -11,7 +11,7 @@ clear all;
 c = 3e8;        % Signal propagation velocity [m/s]
 f0 = 0.9e9;     % Carrier freq of the transmitted signal [Hz]
 fs = 12.5e6;    % DAC rate samples [samples/s] 
-M = 128;        % Pulses per dwell
+M = 128;        % Pulses per DWELL
 TauP = 0.001;   % Pulse length [s]
 PRI = 1*TauP;   % Slow time sampling interval or PRI [s]
 PRF=1/PRI;      % Pulse repetition frequency
@@ -100,11 +100,11 @@ while (~feof(FileId) )
 %       figure(h10);
 %       subplot(2,1,1),fftshift
 %       pcolor((1:M),(1:L),real(Y)), shading flat, 
-%       xlabel('Pulses per dwell'); 
+%       xlabel('Pulses per DWELL'); 
 %       ylabel('Number of range cells');
 %       subplot(2,1,2),
 %       pcolor((1:M)*PRI,(1:L)*c/2/fs/1000,real(Out)), shading flat, 
-%       xlabel('Pulses per dwell'); 
+%       xlabel('Pulses per DWELL'); 
 %       ylabel('Number of range cells');
         
 %       pcolor((1:M)*PRI, (1:L)*c/2/fs/1000, real(Out) ), shading flat;
@@ -128,10 +128,7 @@ x=1:M;
 switch cw
     case 1 %Rectangular
         w=1-abs((x-0.5*(M-1))/(0.5*M));
-    case 2% Velocidad Doppler
-        for i=1:Lp
-            fd(i,:)=abs(fft(SFiltrada(i,:,nk),L));
-        end %Flat top 
+    case 2 %Flat top
         w=1-1.93*cos(2*pi*x/(M-1))+1.29*cos(4*pi*x/(M-1))-0.388*cos(6*pi*x/(M-1))+0.028*cos(8*pi*x/(M-1));
     case 3 %Hann
         w=0.5*(1-cos(2*pi*x/(M-1)));
@@ -161,9 +158,9 @@ end
 fd = zeros(Lp, 4*M);
 
 for nk=1:81
-        for nDWEL=1:M
+        for nDWELL=1:M
             %Tomamos el primer ray y Aplicamos FFT
-            ray_t=Signal(:,nDWEL,nk);
+            ray_t=Signal(:,nDWELL,nk);
             ray_f=fft(ray_t, Lp);
 
             %Aplicamos el Filtro en el dominio de F y lo volvemos a
@@ -171,19 +168,19 @@ for nk=1:81
             out_f=ray_f.*Hp_f;
             out=ifft(out_f, Lp);
             
-            SFiltrada(:,nDWEL,nk)=out;      
+            SFiltrada(:,nDWELL,nk)=out;      
         end
         
         % DOPPLER
         % Realixamos la FFT a M pulsos, en el Li que encontramos un máximo
 
-        % buscamos un maximo por iteración para un dwell cualquiera
+        % buscamos un maximo por iteración para un DWELL cualquiera
         [ValMax, Lmax]=max(SFiltrada(:,10,nk));
 
         % aplicamos el window
         win=SFiltrada(Lmax,:,nk).*w;
         
-        % Convertimos las Lp muestras de 128 DWEL
+        % Convertimos las Lp muestras de 128 DWELL
         for i=1:Lp
           fd(i,:)=abs(fftshift(fft(SFiltrada(i,:,nk),4*M)));
         end    
@@ -207,7 +204,7 @@ for nk=1:81
         drawnow
                 
         % RANGO / VELOCIDAD
-        % Hacemos FFT a cada matriz M x DWEL y la ploteamos en un gráfico Velocidad
+        % Hacemos FFT a cada matriz M x DWELL y la ploteamos en un gráfico Velocidad
         % radial / Rango
                         
         % 2D map using view
