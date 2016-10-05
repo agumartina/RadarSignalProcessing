@@ -117,7 +117,7 @@ end
 fclose(FileId) ;
 
 
-%--------------------------------------------------------------------------
+%--------------------------------------------------------------------------NI USRP-2920
 % Funciones Window
 %--------------------------------------------------------------------------
 
@@ -143,7 +143,7 @@ end
 % ------------------------------------------------------------------------
     
     set(gca,'nextplot','replace','Visible','off');
-    mov=VideoWriter('Movie.mp4', 'Uncompressed AVI');
+    mov=VideoWriter('Movie_Hamming.mp4', 'Uncompressed AVI');
     mov.FrameRate=1/(PRI*M);
     open(mov);
     
@@ -215,7 +215,7 @@ for nk=1:81
         ylabel('Range (Km)'),
         zlim([0,inf]),
         xlim([-6,6]),
-        ylim([48,52]),
+        ylim([4,5]),
         view(2);
         colorbar;
         drawnow
