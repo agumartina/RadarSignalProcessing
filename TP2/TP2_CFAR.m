@@ -26,29 +26,6 @@ Y=1:M;
 data=load('procNov11stare0.mat');
 Z=rot90(data.vv,3);
 
-% reZ=(real(Z));          % NOTA => ver si queda con abs o sin
-% imZ=abs(imag(Z));
-
-%graph
-% figure(1);
-% subplot(1,2,1);
-% title('|Re(procNov11stare0.mat)| VV');
-% phRe=pcolor(Y, X ,reZ);
-% set(phRe,'edgecolor','none');
-% ylabel('Rango [m]');
-% xlabel('Nº PRF');
-% colormap('jet');
-% colorbar;
-% 
-% 
-% subplot(1,2,2);
-% title('|Im(procNov11stare0.mat)| VV');
-% phIm=pcolor(Y, X ,imZ);
-% set(phIm,'edgecolor','none');
-% ylabel('Rango [m]');
-% xlabel('Nº PRF');
-% colorbar;
-
 figure(1);
 phIm=pcolor(Y, X ,abs(Z));
 set(phIm,'edgecolor','none');
@@ -58,22 +35,35 @@ xlabel('Nº PRF');
 colorbar;
 
 %--------------------------------------------------------------------------
-% 2) Implementar el detector Uncensores ML CFAR (known C)
+% 2) calcular T para un pulso
 %--------------------------------------------------------------------------
 
 %se le solicita al usuario que ingrese una Pfa deseada
-pfa=input('Ingrese la Pfa deseada (10^-6): ');
+pfa=-1;
+while (pfa<0)
+    pfa=input('Ingrese la Pfa deseada (10^-6): ');
+end;
 
 %se le solicita al usuario que ingrese el tamaño de la ventana de
 %referencia
-ref_win=input('Ingrese la cantidad de muestras que debe poseer la ventana de referencia:');
+ref_win=-1;
+while (ref_win<0)
+    ref_win=input('Ingrese la cantidad de muestras que debe poseer la ventana de referencia:');
+end
+
 if (mod(ref_win,2) == 0),
     ref_win= ref_win+1;
 end;
 
+% definir que pulso procesar
+n_pulso=-1;
+while(n_pulso<1)
+    n_pulso=input('Ingrese el pulso que desea procesar:');
+end
+
 %Definimos e inicializamos
-detected=zeros(L,M);
 T=zeros(L,M);
+
 %actualizamos los punteros a la celdas de referencia
 register=zeros(ref_win);      % cell + 2 of vecinity
 left_window=1:(ref_win/2-2.5);       %  
@@ -84,35 +74,23 @@ C=2;            % parametro de forma
 
 %bucle del CFAR
 
-for m=1:M
-    for l=1:L
-        % Se obtiene la intensidad, se corre un lugar el resitro, y se ingresa
-        % el nuevo valor
-        Pxx=Z(l,m).*conj(Z(l,m))/(M*L);       % Intensidad
-        register = circshift(register,1);       % Se corre todo un reistro ('clk')
-        register(1)=Pxx;                        % se guarda
+for l=1:L
+    % Se obtiene la intensidad, se corre un lugar el resitro, y se ingresa
+    % el nuevo valor
+    Pxx=Z(l,n_pulso).*conj(Z(l,n_pulso))/(M*L);       % Intensidad
+    register = circshift(register,1);       % Se corre todo un reistro ('clk')
+    register(1)=Pxx;                        % se guarda
 
-        % parámetro de escala
-        %B=((1/M).*sum(register(:).^C))^(1/C); % 6
+    %alfa
+    raizMpfa=nthroot(pfa,(ref_win-4));
+    alfa=((1-raizMpfa)/(raizMpfa/(ref_win-4)))^(1/2);
+    % parámetro de escala
+    B=((1/(ref_win-4)).*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C); % 6
 
-        % threshold of the form
-        T(l,m)=((pfa^(-1/M)-1)*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C);      % 18
-
-        %Detector
-        if T(l,m) < register(cut)
-            detected(l,m)=1;
-        elseif T(l,m) > register(cut)
-            detected(l,m)=0;
-        end
-    end
+    % threshold of the form
+    T(l,n_pulso)=alfa.*B; % 7
+    %T(l,m)=((pfa^(-1/M)-1)*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C);      % 18
 end
-figure(2);
-title('Detection VV');
-phIm=pcolor(Y, X ,detected);
-set(phIm,'edgecolor','none');
-ylabel('Rango [m]');
-xlabel('Nº PRF');
-colorbar;
 
 %--------------------------------------------------------------------------
 % 3) Graficar la intensidad de los datos correspondientes al pulso 180 de la polarización VV.
@@ -128,8 +106,55 @@ elseif(ref_win==33)
     ref_win=32;
 end
 figure(3);
-plot(X,Z(:,180).*conj(Z(:,180))/(M*L),X, T(:,180));
+plot(X,Z(:,n_pulso).*conj(Z(:,n_pulso))/(M*L),X, T(:,n_pulso));
 title(strcat('Comparación Pulso 180 Intensidad VV y T - M= ',num2str(ref_win),' y Pfa= ', num2str(pfa)));
 xlabel('Rabngo [m]'),ylabel('Intensidad');
+
+%--------------------------------------------------------------------------
+% 4) Generar un mapa de detección a partir de los datos VV usando nuevamente la rutina
+% anterior para procesar todos los pulsos. Asignar valor uno cuando se detecta un objetivo
+% (el dato es mayor que el umbral) y cero cuando no hay detección. Calcular la probabilidad
+% de falsa alarma empı́rica y comparar con la P F A utilizada para establecer el umbral de
+% detección. Comentar brevemente.
+%--------------------------------------------------------------------------
+
+%Definimos e inicializamos
+detected=zeros(L,M);
+
+
+%bucle del CFAR
+for m=1:M
+    for l=1:L
+        % Se obtiene la intensidad, se corre un lugar el resitro, y se ingresa
+        % el nuevo valor
+        Pxx=Z(l,m).*conj(Z(l,m))/(M*L);       % Intensidad
+        register = circshift(register,1);       % Se corre todo un reistro ('clk')
+        register(1)=Pxx;                        % se guarda
+
+        raizMpfa=nthroot(pfa,(ref_win-4));
+        alfa=((1-raizMpfa)/(raizMpfa/(ref_win-4)))^(1/2);
+        % parámetro de escala
+        B=((1/(ref_win-4)).*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C); % 6
+
+        % threshold of the form
+        T(l,m)=alfa.*B; % 7
+        %T(l,m)=((pfa^(-1/M)-1)*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C);      % 18
+
+        %Detector
+        if T(l,m) < register(cut)
+            detected(l,m)=1;
+        elseif T(l,m) > register(cut)
+            detected(l,m)=0;
+        end
+    end
+end
+figure(4);
+title('Detection VV');
+phIm=image(Y, X ,detected);
+set(phIm,'edgecolor','none');
+caxis([0,1]);
+ylabel('Rango [m]');
+xlabel('Nº PRF');
+colorbar;
 
 
