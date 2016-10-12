@@ -149,12 +149,11 @@ for m=1:M
     end
 end
 figure(4);
-title('Detection VV');
-phIm=image(Y, X ,detected);
-set(phIm,'edgecolor','none');
-caxis([0,1]);
-ylabel('Rango [m]');
-xlabel('Nº PRF');
-colorbar;
 
+imagesc(Y, X ,detected),
+title('Detection VV'),
+ylabel('Rango [m]'),
+xlabel('Nº PRF'),
+colorbar,
+caxis([0,1]);
 
