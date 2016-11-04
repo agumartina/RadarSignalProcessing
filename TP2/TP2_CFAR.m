@@ -67,7 +67,7 @@ T=zeros(L,M);
 vecinity=2;                   % definimos cuantas celdas de vecindad
 long_register=ref_win+2*vecinity+1; % cell + 2 of vecinity +1 cut
 
-register=zeros(long_register);      
+register=zeros(1,long_register);      
 left_window=1:(ref_win/2);       %  
 right_window=(long_register-ref_win/2+1):long_register;    % 
 cut=ref_win/2+vecinity+1;                  % cell under test
@@ -127,12 +127,14 @@ legend('Intensidad Rx','Umbral T');
 
 %Definimos e inicializamos
 detected=zeros(L,M);
-pfa_empirica=zeros(M);
-register=zeros(long_register); 
+pfa_empirica=zeros(1,M);
+%register=zeros(long_register); 
 
 % calculamos el alfa para la pfa dada
 raizMpfa=nthroot(pfa,(ref_win));
 alfa=((1-raizMpfa)/(raizMpfa/(ref_win-4)))^(1/2);
+
+
 
 %bucle del CFAR
 for m=1:M
@@ -140,6 +142,7 @@ for m=1:M
         % Se obtiene la intensidad, se corre un lugar el registro, y se ingresa
         % el nuevo valor
         Pxx=abs(Z(l,m));       % Intensidad
+       
         register = circshift(register,1);       % Se corre todo un reistro ('clk')
         register(1)=Pxx;                        % se guarda
         
@@ -175,7 +178,7 @@ for m=1:M
 end
 %calculamos de las M mediciones
 pfa_empirica_total=sum(pfa_empirica(:))/M;
-
+pfa_empirica=zeros(1,M);
 %se reordena la matriz matchs
 
 figure(4);
@@ -197,68 +200,108 @@ legend('Intensidad Rx','Umbral T');
 % false alarm rate = false targets per PRT / nº of rangecells
 disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total), ' y el Pfa establecido: ', num2str(pfa),' con un error de ', num2str(pfa_empirica_total-pfa) ));
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PARTE 2 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % 5) Construir una rutina para implementar el detector CFAR que se describe en la Sección 3.1
 % de [1], donde el parámetro de forma es desconocido. Generar un mapa de detección a partir
 % de los datos VV para M igual a 16 y 32, y para P F A igual a 10 −2 y 10 −3 (usar la Figura
 % 2 de [1] para determinar el umbral). Comparar con los resultados del inciso anterior.
 
+%  B (se toman M/2 valores a cada lado de la CUT,
+
 %definición de variables del bucle
 detected2=zeros(L,M);
-register=zeros(ref_win);      % reiniciamos el registro del CFAR
+pfa_empirica2=zeros(1,M);
+register2=zeros(1,ref_win);      % reiniciamos el registro del CFAR
 
+%BORRAR
+Zintensidad=zeros(L,M);
 
 %bucle del CFAR C y B desconocidos
 for m=1:M
     for l=1:L
-        % Se obtiene la intensidad, se corre un lugar el resitro, y se ingresa
+        % Se obtiene la intensidad, se corre un lugar el registro, y se ingresa
         % el nuevo valor
-        Pxx=abs(Z(l,m));                        % Intensidad
-        register = circshift(register,1);       % Se corre todo un reistro ('clk')
-        register(1)=Pxx;                        % se guarda
-
-        % Método iterativo para encontrar parámetro de forma C
-        testC=0;
-        error=99;
-        invC=0;
-        while(error>=0.01)
+        Pxx=abs(Z(l,m));       % Intensidad
+        Zintensidad(l,m)=Pxx;
+        register2 = circshift(register2,1);       % Se corre todo un reistro ('clk')
+        register2(1)=Pxx;                        % se guarda
+        
+        % una vez que se llene el registro
+        if(not((m==1)&&(l<=long_register)))
+            % parámetro de escala y alfa
+            Xmerged=[register2(left_window),register2(right_window)]; 
+            parmhat = wblfit(Xmerged);
+            B=parmhat(1);
+            c=parmhat(2);
             
-            invC=(sum((register(left_window).^testC).*log10(register(left_window)))+sum((register(cut).^testC).*log10(register(cut)))+sum((register(right_window).^testC).*log10(register(right_window))) /...
-                (sum(register(left_window).^testC)+sum(register(cut).^testC)+sum(register(right_window).^testC)))-...
-                ((1/(ref_win-4)).*(sum(log10(register(left_window)))+log10(register(cut))+sum(log10(register(right_window))))); %ec 29
-            
-            error=testC-1/invC;
-            if (error>0)
-                testC=testC+0.01;
-            elseif (error <0)
-                testC=testC-0.01;
+            %alfa
+            done=1;
+            while(done==1)
+                switch pfa
+                    case pfa==10^-2
+                        alfa=-log10(pfa);
+                        done=0;
+                    case pfa==10^-3 %de la figura 2 
+                        if(M==16)
+                            alfa=17;
+                        elseif(M==32)
+                            alfa=11;
+                        end
+                        done=0;
+                    otherwise
+                        disp('Debe ingressar como Pfa 10^-2 o 10^-3');
+                        pfa=input('Ingrese la Pfa deseada: ');
+                end
             end
-        end    
-        C=testC;
-        
-        % parámetro de escala
-        B=((1/(ref_win-4)).*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C); % 6
-        
-        % alfa
-        
-        
-        % threshold of the form
-        T(l,m)=B*alfa^(1/c); % 7
-        %T(l,m)=((pfa^(-1/M)-1)*(sum(register(left_window).^C)+sum(register(cut).^C)+sum(register(right_window).^C)))^(1/C);      % 18
 
-        %Detector
-        if T(l,m) < register(cut)
-            detected2(l,m)=1;
-        elseif T(l,m) > register(cut)
-            detected2(l,m)=0;
+            % Posicionamos los punteros al CUT en la matriz T 
+            posCut=l-(ref_win/2+vecinity+1);
+            pulso=m;
+            if (posCut<=0)                      %si fue negativo, es porque es del pulso anterior, si fue 0 es el último
+                posCut=L+posCut;
+                pulso=m-1;          
+            end
+            % threshold of the form
+            T(posCut,pulso)=B*alfa^(1/c); % 32
+
+            %Detector
+            if T(posCut,pulso) < register(cut)
+                detected2(posCut,pulso)=1;
+            elseif T(posCut,pulso) > register(cut)
+                detected2(posCut,pulso)=0;
+            end
         end
-        
-        % pfa_empirica, suma todos los match en cada ray
-        % si detecta un match en el rango 2700 m, descuenta uno
-        pfa_empirica(m)=sum(detected2(:,m));
-        if((detected2(23,m)==1)||(detected2(24,m)==1))
-            pfa_empirica(m)=pfa_empirica(m)-1;
-        end
-        pfa_empirica(m)=pfa_empirica(m)/L;
     end
+    % pfa_empirica, suma todos los match en cada ray
+    % si detecta un match en el rango 2700 m (l=23 o 24), descuenta uno
+    pfa_empirica2(m)=sum(detected2(:,m));
+    if((detected2(23,m)==1)||(detected2(24,m)==1))
+        pfa_empirica2(m)=pfa_empirica2(m)-1;
+    end
+    pfa_empirica2(m)=pfa_empirica2(m)/L;
 end
+
+%calculamos de las M mediciones
+pfa_empirica_total2=sum(pfa_empirica2(:))/M;
+
+%se reordena la matriz matchs
+
+figure(5);
+
+imagesc(Y, fliplr(X) ,detected2);
+title('Detection VV'),
+ylabel('Rango [m]'),
+xlabel('Nº PRF'),
+colorbar,
+caxis([0,1]);
+
+figure(6);
+plot(X,abs(Z(:,n_pulso)),X, T(:,n_pulso));
+title(strcat('Comparación Pulso ', num2str(n_pulso) ,' Intensidad VV - M= ',num2str(ref_win),' y Pfa= ', num2str(pfa)));
+xlabel('Rabngo [m]'),ylabel('Intensidad');
+legend('Intensidad Rx','Umbral T');
+
+% probabilidad de falsa añarma empírica
+% false alarm rate = false targets per PRT / nº of rangecells
+disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total2), ' y el Pfa establecido: ', num2str(pfa),' con un error de ', num2str(pfa_empirica_total2-pfa) ));
 
