@@ -11,6 +11,7 @@ clear all;
 fs= 10e6;           % frec de sampleo
 f0= 9.39e9;          % frec del radar
 PRF=200;            % PRF 200 hz
+PRI=1/PRF;
 blindRange=2000;    % Zona ciega, rango ciego
 L=54;               % fast time meaurements
 M=2048;             % slow time 
@@ -136,8 +137,6 @@ pfa_empirica=zeros(1,M);
 raizMpfa=nthroot(pfa,(ref_win));
 alfa=((1-raizMpfa)/(raizMpfa/(ref_win-4)))^(1/2);
 
-
-
 %bucle del CFAR
 for m=1:M
     for l=1:L
@@ -183,7 +182,8 @@ pfa_empirica_total=sum(pfa_empirica(:))/M;
 pfa_empirica=zeros(1,M);
 
 figure(4);
-imagesc(Y, X ,flip(detected));
+imagesc(Y, X ,detected);
+set(gca,'YDir','normal'),           % FIX y AXIS REVERSE
 title('Detection VV'),
 ylabel('Rango [m]'),
 xlabel('Nº PRF'),
@@ -200,112 +200,112 @@ legend('Intensidad Rx','Umbral T');
 % false alarm rate = false targets per PRT / nº of rangecells
 disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total), ' y el Pfa establecido: ', num2str(pfa),' con un error de ', num2str(pfa_empirica_total-pfa) ));
 
-% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PARTE 2 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% % 5) Construir una rutina para implementar el detector CFAR que se describe en la Sección 3.1
-% % de [1], donde el parámetro de forma es desconocido. Generar un mapa de detección a partir
-% % de los datos VV para M igual a 16 y 32, y para P F A igual a 10 −2 y 10 −3 (usar la Figura
-% % 2 de [1] para determinar el umbral). Comparar con los resultados del inciso anterior.
-% 
-% %  B (se toman M/2 valores a cada lado de la CUT,
-% ifftshift
-% %definición de variables del bucle
-% detected2=zeros(L,M);
-% pfa_empirica2=zeros(1,M);
-% register2=zeros(1,long_register);  
-% T=zeros(L,M);                       %reseteamos la matriz
-% 
-% %calculo de alfa
-% done=1;
-% while(done==1)
-%     switch pfa
-%         case 0.01
-%             alfa=-log10(pfa);
-%             disp('0.01');
-%             done=0;
-%         case 0.001 %de la figura 2 
-%             disp('0.001');
-%             if(ref_win==16)
-%                 alfa=17;
-%             elseif(ref_win==32)
-%                 alfa=11;
-%             end
-%             done=0;
-%         otherwise
-%             disp('Debe ingressar como Pfa 10^-2 o 10^-3');
-%             pfa=input('Ingrese la Pfa deseada: ');
-%     end
-% end
-% 
-% %bucle del CFAR C y B desconocidos
-% for m=1:M
-%     for l=1:L
-%         % Se obtiene la intensidad, se corre un lugar el registro, y se ingresa
-%         % el nuevo valor
-%         Pxx=abs(Z(l,m));       % Intensidad
-% 
-%         register2 = circshift(register2,1,2);       % Se corre todo un reistro ('clk')
-%         register2(1)=Pxx;                        % se guarda
-%         
-%         % una vez que se llene el registro
-%         if(not((m==1)&&(l<=long_register)))
-%             % parámetro de escala y forma
-%             Xmerged=[register2(left_window),register2(right_window)]; 
-%             parmhat = wblfit(Xmerged);
-%             B=parmhat(1);
-%             c=parmhat(2);
-%             
-%             % Posicionamos los punteros al CUT en la matriz T 
-%             posCut=l-(ref_win/2+vecinity+1);
-%             pulso=m;
-%             if (posCut<=0)                      %si fue negativo, es porque es del pulso anterior, si fue 0 es el último
-%                 posCut=L+posCut;
-%                 pulso=m-1;          
-%             end
-%             % threshold of the form
-%             T(posCut,pulso)=B*alfa^(1/c); % 32
-% 
-%             %Decision 
-%             if T(posCut,pulso) < register2(cut)
-%                 detected2(posCut,pulso)=1;
-%             elseif T(posCut,pulso) > register2(cut)
-%                 detected2(posCut,pulso)=0;
-%             end
-%         end
-%     end
-%     % pfa_empirica, suma todos los match en cada ray
-%     % si detecta un match en el rango 2700 m (l=23 o 24), descuenta uno
-%     pfa_empirica2(m)=sum(detected2(:,m));
-%     if((detected2(23,m)==1)||(detected2(24,m)==1))
-%         pfa_empirica2(m)=pfa_empirica2(m)-1;
-%     end
-%     pfa_empirica2(m)=pfa_empirica2(m)/L;
-% end
-% 
-% %calculamos de las M mediciones
-% pfa_empirica_total2=sum(pfa_empirica2(:))/M;
-% 
-% %se reordena la matriz matchs
-% 
-% figure(6);
-% 
-% imagesc(Y, fliplr(X) ,detected2);
-% title('Detection VV ML CFAR Webull'),
-% ylabel('Rango [m]'),
-% xlabel('Nº PRF'),
-% colorbar,
-% caxis([0,1]);
-% 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% PARTE 2 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 5) Construir una rutina para implementar el detector CFAR que se describe en la Sección 3.1
+% de [1], donde el parámetro de forma es desconocido. Generar un mapa de detección a partir
+% de los datos VV para M igual a 16 y 32, y para P F A igual a 10 −2 y 10 −3 (usar la Figura
+% 2 de [1] para determinar el umbral). Comparar con los resultados del inciso anterior.
+
+%definición de variables del bucle
+detected2=zeros(L,M);
+pfa_empirica2=zeros(1,M);
+register2=zeros(1,long_register);  
+T=zeros(L,M);                       %reseteamos la matriz
+
+%calculo de alfa
+done=1;
+while(done==1)
+    switch pfa
+        case 0.01
+            alfa=-log10(pfa);
+            disp('0.01');
+            done=0;
+        case 0.001 %de la figura 2 
+            disp('0.001');
+            if(ref_win==16)
+                alfa=17;
+            elseif(ref_win==32)
+                alfa=11;
+            end
+            done=0;
+        otherwise
+            disp('Debe ingressar como Pfa 10^-2 o 10^-3');
+            pfa=input('Ingrese la Pfa deseada: ');
+    end
+end
+
+%bucle del CFAR C y B desconocidos
+for m=1:M
+    for l=1:L
+        % Se obtiene la intensidad, se corre un lugar el registro, y se ingresa
+        % el nuevo valor
+        Pxx=abs(Z(l,m));       % Intensidad
+
+        register2 = circshift(register2,1,2);       % Se corre todo un reistro ('clk')
+        register2(1)=Pxx;                        % se guarda
+        
+        % una vez que se llene el registro
+        if(not((m==1)&&(l<=long_register)))
+            % parámetro de escala y forma
+            Xmerged=[register2(left_window),register2(right_window)]; 
+            parmhat = wblfit(Xmerged);
+            B=parmhat(1);
+            c=parmhat(2);
+            
+            % Posicionamos los punteros al CUT en la matriz T 
+            posCut=l-(ref_win/2+vecinity+1);
+            pulso=m;
+            if (posCut<=0)                      %si fue negativo, es porque es del pulso anterior, si fue 0 es el último
+                posCut=L+posCut;
+                pulso=m-1;          
+            end
+            % threshold of the form
+            T(posCut,pulso)=B*alfa^(1/c); % 32
+
+            % Dectetor
+            if T(posCut,pulso) < register2(cut)
+                detected2(posCut,pulso)=1;
+            elseif T(posCut,pulso) > register2(cut)
+                detected2(posCut,pulso)=0;
+            end
+        end
+    end
+    % pfa_empirica, suma todos los match en cada ray
+    % si detecta un match en el rango 2700 m (l=23 o 24), descuenta uno
+    pfa_empirica2(m)=sum(detected2(:,m));
+    if((detected2(23,m)==1)||(detected2(24,m)==1))
+        pfa_empirica2(m)=pfa_empirica2(m)-1;
+    end
+    pfa_empirica2(m)=pfa_empirica2(m)/L;
+end
+
+%calculamos de las M mediciones
+pfa_empirica_total2=sum(pfa_empirica2(:))/M;
+
+%se reordena la matriz matchs
+
+figure(6);
+
+imagesc(Y, X ,detected2);
+set(gca,'YDir','normal'),           % FIX y AXIS REVERSE
+title(strcat('Detection VV ML CFAR Webull - Pfa = ',num2str(pfa),' y M = ',num2str(ref_win))),
+ylabel('Rango [m]'),
+xlabel('Nº PRF'),
+colorbar,
+caxis([0,1]);
+
+% PARA CONTROL
 % figure(7);
 % plot(X,abs(Z(:,n_pulso)),X, T(:,n_pulso));
 % title(strcat('Comparación Pulso ', num2str(n_pulso) ,' Intensidad VV - M= ',num2str(ref_win),' y Pfa= ', num2str(pfa)));
 % xlabel('Rabngo [m]'),ylabel('Intensidad');
 % legend('Intensidad Rx','Umbral T');
-% 
-% % probabilidad de falsa añarma empírica
-% % false alarm rate = false targets per PRT / nº of rangecells
-% disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total2), ' y el Pfa establecido: ', num2str(pfa),' con un error de ', num2str(pfa_empirica_total2-pfa) ));
 
-% 6 Generar y graficar una imagen de rango/Doppler usando los primeros 256 pulsos de la
+% probabilidad de falsa añarma empírica
+% false alarm rate = false targets per PRT / nº of rangecells
+disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total2), ' y el Pfa establecido: ', num2str(pfa),' con un error de ', num2str(pfa_empirica_total2-pfa) ));
+
+% 6. Generar y graficar una imagen de rango/Doppler usando los primeros 256 pulsos de la
 % matriz VV. Utilizar los comandos fft y fftshift. Repetir para las siguientes dos ventanas de
 % 256 pulsos y observar el cambio de Doppler para el objetivo y el clutter.
 
@@ -313,7 +313,7 @@ disp(strcat('El Pfa calculado es: ',num2str(pfa_empirica_total), ' y el Pfa esta
 f=linspace(-PRF/2,PRF/2,256); %Frequency Vector
 vd=linspace(-PRF/2,PRF/2,256)*lambda/2; % vector velocidad
 
-% Inicializamos fariables
+% Inicializamos variables
 fd = zeros(8,L,256);
 
 for i=1:8  
@@ -321,37 +321,42 @@ for i=1:8
     iup=i*256;
     idown=iup-256+1;
     
-    % Convertimos las Lp muestras de 128 DWELL
+    % Convertimos las L muestras de 128 DWELL
     for j=1:L     
         fd(i,j,:)=abs(fftshift(fft(ifftshift(abs(Z(j,idown:iup))))));
     end
     
-    % se hace la fft y se centra
-    tmpf=fftshift(fft(ifftshift(abs(Z(25,idown:iup)))));
-       
-    % normalizamos
-    normA = tmpf - min(tmpf);
-    normA = normA ./ max(normA(:));
-    figure(9),
-    plot(f/PRF,abs(normA)),
-    title('Espectro de todo rango')
-    xlabel('f/PRF'),
-    ylabel('|Amplitud Normalizada|'),
-    drawnow
+%     % PARA CONTROL
+%     % se hace la fft y se centra
+%     tmpf=fftshift(fft(ifftshift(abs(Z(39,idown:iup)))));
+%        
+%     % normalizamos
+%     normA = tmpf - min(tmpf);
+%     normA = normA ./ max(normA(:));
+%     
+%     %graficamos
+%     figure(9),
+%     plot(f/PRF,abs(normA)),
+%     title('Espectro de todo rango')
+%     xlabel('f/PRF'),
+%     ylabel('|Amplitud Normalizada|'),
+%     drawnow
      
     % 2D map using view
     ftmp=squeeze(fd(i,:,:));
-    figure(8),
+    figure(8);
     imagesc(vd, X,ftmp);
+    set(gca,'YDir','normal'),           % FIX y AXIS REVERSE
     title('Grafico Velocidad/Rango Sin Filtro'),
     ylabel('Rango [m]'),
-    xlabel('Vd'),
+    xlabel('Vd [m/s]'),
     colorbar,
     caxis([0,10]);
     drawnow
-    
+
     pause(0.5);
 end
+
 
 % 7. Utilizar la rutina del detector de la Sección 2.1 de [1] para determinar la presencia de
 % objetivos en cada banda de frecuencia Doppler. Graficar los resultados para M = 32 y
@@ -421,17 +426,19 @@ pfa_empirica_total3=sum(pfa_empirica3(:))/M;
 
 figure(10);
 imagesc(vd/PRF, X,detected3);
+set(gca,'YDir','normal'),           % FIX y AXIS REVERSE
 title('Detection VV Doppler'),
 ylabel('Rango [m]'),
 xlabel('Vd/PRF'),
 colorbar,
 caxis([0,1]);
 
-figure(11),
-plot(X,abs(squeeze(fd(1,:,n_pulso))),X, T(:,n_pulso)),
-title(strcat('Comparación T Doppler Pulso ', num2str(n_pulso) ,' Intensidad VV - M= ',num2str(ref_win),' y Pfa= ', num2str(pfa))),
-xlabel('Rabngo [m]'),ylabel('Intensidad'),
-legend('Intensidad Rx','Umbral T');
+% PARA CONTROL
+% figure(11),
+% plot(X,abs(squeeze(fd(1,:,n_pulso))),X, T(:,n_pulso)),
+% title(strcat('Comparación T Doppler Pulso ', num2str(n_pulso) ,' Intensidad VV - M= ',num2str(ref_win),' y Pfa= ', num2str(pfa))),
+% xlabel('Rabngo [m]'),ylabel('Intensidad'),
+% legend('Intensidad Doppler','Umbral T');
 
 % probabilidad de falsa añarma empírica
 % false alarm rate = false targets per PRT / nº of rangecells
